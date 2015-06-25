@@ -1,5 +1,6 @@
 package edu.teco.blerssistrengthtest;
 
+import android.animation.Animator;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
@@ -21,6 +22,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewAnimationUtils;
 import android.widget.Button;
 import android.widget.Toast;
 
@@ -69,10 +71,32 @@ public class MainActivity extends Activity {
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             super.onConnectionStateChange(gatt, status, newState);
 
+
             if (newState == BluetoothGatt.STATE_CONNECTED) {
                 Log.i("RSSI", "Connected to " + gatt.getDevice().getAddress());
                 Log.i("RSSI", "Read remote RSSI.");
                 gatt.readRemoteRssi();
+
+                // Circle-Reveal graph once we're connected.
+                mHandler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        View graphView = findViewById(R.id.mySimpleXYPlot);
+                        // get the center for the clipping circle
+                        int cx = (graphView.getLeft() + graphView.getRight()) / 2;
+                        int cy = (graphView.getTop() + graphView.getBottom()) / 2;
+
+                        // get the final radius for the clipping circle
+                        int finalRadius = Math.max(graphView.getWidth(), graphView.getHeight());
+
+                        // create the animator for this view (the start radius is zero)
+                        Animator anim = ViewAnimationUtils.createCircularReveal(graphView, cx, cy, 0, finalRadius);
+
+                        // make the view visible and start the animation
+                        graphView.setVisibility(View.VISIBLE);
+                        anim.start();
+                    }
+                }, 3100);
             } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
                 Log.i("RSSI", "Disconnected from " + gatt.getDevice().getAddress());
             }
@@ -174,6 +198,8 @@ public class MainActivity extends Activity {
         mDevice = mBluetoothAdapter.getRemoteDevice(mBLEAddress);
         mBluetoothGatt = mDevice.connectGatt(this, false, mGattCallback);
 
+
+
     }
 
 
@@ -210,6 +236,7 @@ public class MainActivity extends Activity {
         }
     }
 
+
     public void downloadButtonClicked(View view) {
 
         // execute this when the downloader must be fired
@@ -225,8 +252,6 @@ public class MainActivity extends Activity {
         });
 
     }
-
-
 
 
     // usually, subclasses of AsyncTask are declared inside the activity class.
