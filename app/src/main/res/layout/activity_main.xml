@@ -1,0 +1,54 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
+    android:layout_height="match_parent" android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    android:paddingBottom="@dimen/activity_vertical_margin" tools:context=".MainActivity">
+<!--
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Start"
+        android:id="@+id/startButton"
+        android:onClick="startButtonClicked"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentStart="true" />
+
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Download"
+        android:id="@+id/downloadButton"
+        android:onClick="downloadButtonClicked"
+        android:layout_alignBottom="@+id/startButton"
+        android:layout_alignEnd="@+id/mySimpleXYPlot" />
+-->
+    <com.androidplot.xy.XYPlot
+        android:id="@+id/mySimpleXYPlot"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        androidPlot.title="RSSI over time"
+        androidPlot.domainLabel="Time"
+        androidPlot.rangeLabel="RSSI"
+        androidPlot.titleWidget.labelPaint.textSize="12dp"
+        androidPlot.domainLabelWidget.labelPaint.textSize="12dp"
+        androidPlot.rangeLabelWidget.labelPaint.textSize="12dp"
+        androidPlot.graphWidget.marginTop="20dp"
+        androidPlot.graphWidget.marginLeft="15dp"
+        androidPlot.graphWidget.marginBottom="25dp"
+        androidPlot.graphWidget.marginRight="10dp"
+        androidPlot.graphWidget.rangeLabelPaint.textSize="12dp"
+        androidPlot.graphWidget.rangeOriginLabelPaint.textSize="12dp"
+        androidPlot.graphWidget.domainLabelPaint.textSize="12dp"
+        androidPlot.graphWidget.domainOriginLabelPaint.textSize="12dp"
+        androidPlot.legendWidget.textPaint.textSize="12dp"
+        androidPlot.legendWidget.iconSizeMetrics.heightMetric.value="15dp"
+        androidPlot.legendWidget.iconSizeMetrics.widthMetric.value="15dp"
+        androidPlot.legendWidget.heightMetric.value="25dp"
+        androidPlot.legendWidget.positionMetrics.anchor="right_bottom"
+        androidPlot.graphWidget.gridLinePaint.color="#000000"
+        android:layout_below="@+id/downloadButton"
+        android:layout_alignParentStart="true" />
+
+</RelativeLayout>
