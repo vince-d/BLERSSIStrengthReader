@@ -18,18 +18,22 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewAnimationUtils;
+import android.view.Window;
 import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.androidplot.xy.BoundaryMode;
 import com.androidplot.xy.LineAndPointFormatter;
 import com.androidplot.xy.SimpleXYSeries;
 import com.androidplot.xy.XYPlot;
+import com.androidplot.xy.XYStepMode;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -37,9 +41,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.DecimalFormat;
 
 
-public class MainActivity extends Activity {
+public class MainActivity extends AppCompatActivity {
 
     BluetoothAdapter mBluetoothAdapter;
     private boolean mScanning;
@@ -52,9 +57,12 @@ public class MainActivity extends Activity {
     private ProgressDialog mProgressDialog;
 
     private String mBLEAddress;
+    private String mBLEName;
 
     private SimpleXYSeries mSeries;
-    private SimpleXYSeries mDownloadSeries;
+    //private SimpleXYSeries mDownloadSeries;
+
+    private Runnable mCircleRevealRunnable;
 
     private XYPlot mPlot = null;
 
@@ -78,25 +86,7 @@ public class MainActivity extends Activity {
                 gatt.readRemoteRssi();
 
                 // Circle-Reveal graph once we're connected.
-                mHandler.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        View graphView = findViewById(R.id.mySimpleXYPlot);
-                        // get the center for the clipping circle
-                        int cx = (graphView.getLeft() + graphView.getRight()) / 2;
-                        int cy = (graphView.getTop() + graphView.getBottom()) / 2;
-
-                        // get the final radius for the clipping circle
-                        int finalRadius = Math.max(graphView.getWidth(), graphView.getHeight());
-
-                        // create the animator for this view (the start radius is zero)
-                        Animator anim = ViewAnimationUtils.createCircularReveal(graphView, cx, cy, 0, finalRadius);
-
-                        // make the view visible and start the animation
-                        graphView.setVisibility(View.VISIBLE);
-                        anim.start();
-                    }
-                }, 3100);
+                mHandler.postDelayed(mCircleRevealRunnable, 2200);
             } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
                 Log.i("RSSI", "Disconnected from " + gatt.getDevice().getAddress());
             }
@@ -125,7 +115,7 @@ public class MainActivity extends Activity {
                 mSeries.addLast(bla2, avg);
 
                 if (mDownloading) {
-                    mDownloadSeries.addLast(bla2, avg);
+                    //mDownloadSeries.addLast(bla2, avg);
                 }
 
                 mPlot.redraw();
@@ -181,23 +171,68 @@ public class MainActivity extends Activity {
         mProgressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
         mProgressDialog.setCancelable(true);
 
+
         mPlot = (XYPlot) findViewById(R.id.mySimpleXYPlot);
-        mSeries = new SimpleXYSeries("Only BLE");
-        mDownloadSeries = new SimpleXYSeries("BLE+WiFi");
+        mPlot.getGraphWidget().getBackgroundPaint().setColor(Color.TRANSPARENT);
+        mPlot.getGraphWidget().getGridBackgroundPaint().setColor(Color.argb(43,255,255,255));
+        mPlot.getGraphWidget().getRangeGridLinePaint().setColor(Color.argb(43, 0, 0, 0));
+        mPlot.getGraphWidget().getDomainGridLinePaint().setColor(Color.argb(43, 0, 0, 0));
+        mPlot.getGraphWidget().getDomainLabelPaint().setColor(Color.BLACK);
+        mPlot.getGraphWidget().getRangeLabelPaint().setColor(Color.BLACK);
+        mPlot.getGraphWidget().getRangeOriginLinePaint().setColor(Color.BLACK);
+        mPlot.getGraphWidget().getRangeOriginLinePaint().setStrokeWidth(4);
+        mPlot.getGraphWidget().getDomainOriginLinePaint().setColor(Color.BLACK);
+        mPlot.getGraphWidget().getDomainOriginLinePaint().setStrokeWidth(4);
+        mPlot.getGraphWidget().getCursorLabelBackgroundPaint().setColor(Color.GREEN);
+        mPlot.getBorderPaint().setColor(Color.TRANSPARENT);
+        mPlot.getBackgroundPaint().setColor(Color.TRANSPARENT);
+
+
+        mSeries = new SimpleXYSeries("BLE RSSI");
+        mPlot.getLegendWidget().getTextPaint().setColor(Color.BLACK);
+        mPlot.setDomainValueFormat(new DecimalFormat("0"));
+        mPlot.setTicksPerDomainLabel(3);
+        mPlot.setRangeValueFormat(new DecimalFormat("0"));
+
+        //mDownloadSeries = new SimpleXYSeries("BLE+WiFi");
         mPlot.addSeries(mSeries, new LineAndPointFormatter(Color.rgb(100, 100, 200), null, null, null));
-        mPlot.addSeries(mDownloadSeries, new LineAndPointFormatter(Color.rgb(20, 20, 20), null, null, null));
+        //mPlot.addSeries(mDownloadSeries, new LineAndPointFormatter(Color.rgb(20, 20, 20), null, null, null));
         //mPlot.setDomainLeftMax(0);
         //mPlot.setDomainLeftMax(-120);
-        mPlot.setRangeBoundaries(-120, 0, BoundaryMode.FIXED);
+        mPlot.setRangeBoundaries(-120, -30, BoundaryMode.FIXED);
 
         rssiArray = new int[10];
 
         Intent intent = getIntent();
         mBLEAddress = intent.getStringExtra("mac");
+        mBLEName = intent.getStringExtra("name");
 
         mDevice = mBluetoothAdapter.getRemoteDevice(mBLEAddress);
         mBluetoothGatt = mDevice.connectGatt(this, false, mGattCallback);
 
+        TextView v = (TextView) findViewById(R.id.bleDeviceNameView);
+        v.setText(mBLEName + " - " + mBLEAddress);
+
+        mCircleRevealRunnable = new Runnable() {
+            @Override
+            public void run() {
+                View graphView = findViewById(R.id.mySimpleXYPlot);
+                // get the center for the clipping circle
+                int cx = (graphView.getLeft() + graphView.getRight()) / 2;
+                int cy = (graphView.getTop() + graphView.getBottom()) / 2;
+
+                // get the final radius for the clipping circle
+                int finalRadius = Math.max(graphView.getWidth(), graphView.getHeight());
+
+                // create the animator for this view (the start radius is zero)
+                Animator anim = ViewAnimationUtils.createCircularReveal(graphView, cx, cy, 0, finalRadius);
+                anim.setDuration(800);
+
+                // make the view visible and start the animation
+                graphView.setVisibility(View.VISIBLE);
+                anim.start();
+            }
+        };
 
 
     }
@@ -231,6 +266,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        mHandler.removeCallbacks(mCircleRevealRunnable);
         if (mBluetoothGatt != null) {
             mBluetoothGatt.disconnect();
         }

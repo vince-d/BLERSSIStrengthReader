@@ -1,5 +1,6 @@
 package edu.teco.blerssistrengthtest;
 
+import android.app.ActivityOptions;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
@@ -12,7 +13,9 @@ import android.os.Looper;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Pair;
 import android.view.View;
+import android.view.Window;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
@@ -42,7 +45,9 @@ public class SelectBLEDeviceActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_select_bledevice);
+
 
         mDevices = new ArrayList<>();
 
@@ -82,10 +87,12 @@ public class SelectBLEDeviceActivity extends AppCompatActivity {
                 BluetoothDevice dev = mDevices.get(position);
                 scanLeDevice(false);
 
+
                 Intent i = new Intent(SelectBLEDeviceActivity.this,MainActivity.class);
                 i.putExtra("mac", dev.getAddress());
                 i.putExtra("name", dev.getName());
-                SelectBLEDeviceActivity.this.startActivity(i);
+                SelectBLEDeviceActivity.this.startActivity(i, ActivityOptions.makeSceneTransitionAnimation(SelectBLEDeviceActivity.this,
+                        new Pair<View, String>(view, "transition1"), new Pair<View, String>(mFab, "fabTrans")).toBundle());
             }
         });
 

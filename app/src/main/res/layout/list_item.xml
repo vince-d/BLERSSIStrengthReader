@@ -1,9 +1,10 @@
 <TextView
+    android:transitionName="transition1"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:text="New Text"
     android:id="@+id/list_text"
-    android:textSize="19dp"
+    android:textSize="17dp"
     android:paddingBottom="17dp"
     android:paddingTop="17dp"
     xmlns:android="http://schemas.android.com/apk/res/android" />

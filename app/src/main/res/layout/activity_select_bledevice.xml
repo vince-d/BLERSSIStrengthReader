@@ -32,6 +32,7 @@
         android:layout_gravity="bottom|end"
         android:layout_marginRight="18dp"
         android:layout_marginBottom="17dp"
+        android:transitionName="fabTrans"
         app:backgroundTint="#ffd5d5d5"
         app:elevation="6dp"
         app:fabSize="normal"
