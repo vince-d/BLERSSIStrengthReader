@@ -17,7 +17,7 @@ gen/
 build/
 
 # idea files
-.idea/
+.idea
 *.iml
 
 
