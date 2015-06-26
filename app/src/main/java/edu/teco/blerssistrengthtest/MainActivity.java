@@ -18,6 +18,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
+import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
@@ -58,6 +60,10 @@ public class MainActivity extends AppCompatActivity {
 
     private String mBLEAddress;
     private String mBLEName;
+
+    private boolean screenLockOn;
+
+    private FloatingActionButton mFab;
 
     private SimpleXYSeries mSeries;
     //private SimpleXYSeries mDownloadSeries;
@@ -135,13 +141,17 @@ public class MainActivity extends AppCompatActivity {
         };
 
     };
-
+    private PowerManager.WakeLock mWakeLock;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        screenLockOn = true;
+
+        screenLock(true);
 
         if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
             Toast.makeText(this, "No BLE on this device.", Toast.LENGTH_LONG).show();
@@ -199,7 +209,7 @@ public class MainActivity extends AppCompatActivity {
         //mPlot.addSeries(mDownloadSeries, new LineAndPointFormatter(Color.rgb(20, 20, 20), null, null, null));
         //mPlot.setDomainLeftMax(0);
         //mPlot.setDomainLeftMax(-120);
-        mPlot.setRangeBoundaries(-120, -30, BoundaryMode.FIXED);
+        mPlot.setRangeBoundaries(-120, -10, BoundaryMode.FIXED);
 
         rssiArray = new int[10];
 
@@ -235,6 +245,24 @@ public class MainActivity extends AppCompatActivity {
         };
 
 
+        mFab = (FloatingActionButton) findViewById(R.id.fab2);
+        mFab.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                onBackPressed();
+            }
+        });
+
+    }
+
+    private void screenLock(boolean b) {
+        if (b) {
+            PowerManager pm = (PowerManager) this.getSystemService(Context.POWER_SERVICE);
+            mWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
+                    getClass().getName());
+            mWakeLock.acquire();
+        } else {
+            mWakeLock.release();
+        }
     }
 
 
@@ -254,6 +282,17 @@ public class MainActivity extends AppCompatActivity {
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
+
+            if (screenLockOn) {
+                Toast.makeText(this, "Screen brightness lock turned off", Toast.LENGTH_SHORT).show();
+                screenLock(false);
+                screenLockOn = false;
+            } else {
+                Toast.makeText(this, "Screen brightness lock turned on", Toast.LENGTH_SHORT).show();
+                screenLock(true);
+                screenLockOn = true;
+            }
+
             return true;
         }
 
@@ -266,6 +305,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
+
+        screenLock(false);
+
         mHandler.removeCallbacks(mCircleRevealRunnable);
         if (mBluetoothGatt != null) {
             mBluetoothGatt.disconnect();

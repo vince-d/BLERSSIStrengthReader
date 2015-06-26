@@ -60,7 +60,7 @@
     android:transitionName="fabTrans"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:src="@drawable/ic_reload"
+    android:src="@drawable/ic_disconnect"
     android:layout_gravity="top|start"
     android:layout_marginLeft="18dp"
     android:layout_marginTop="17dp"
