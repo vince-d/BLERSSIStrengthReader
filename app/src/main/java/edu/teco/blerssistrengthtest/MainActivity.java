@@ -1,158 +1,61 @@
 package edu.teco.blerssistrengthtest;
 
+// General imports.
 import android.animation.Animator;
-import android.app.Activity;
-import android.app.ProgressDialog;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewAnimationUtils;
-import android.view.Window;
-import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+// Androidplot imports.
 import com.androidplot.xy.BoundaryMode;
 import com.androidplot.xy.LineAndPointFormatter;
 import com.androidplot.xy.SimpleXYSeries;
 import com.androidplot.xy.XYPlot;
-import com.androidplot.xy.XYStepMode;
 
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.text.DecimalFormat;
+
 
 
 public class MainActivity extends AppCompatActivity {
 
-    BluetoothAdapter mBluetoothAdapter;
-    private boolean mScanning;
-    private Handler mHandler;
-    private boolean mDownloading = false;
-    private boolean mEnable;
-    private Button mStartButton;
+    private static final String _TAG = "MainActivity";
     private BluetoothGatt mBluetoothGatt;
-    private BluetoothDevice mDevice;
-    private ProgressDialog mProgressDialog;
 
-    private String mBLEAddress;
-    private String mBLEName;
-
-    private boolean screenLockOn;
-
-    private FloatingActionButton mFab;
-
-    private SimpleXYSeries mSeries;
-    //private SimpleXYSeries mDownloadSeries;
-
+    private Handler mHandler;
     private Runnable mCircleRevealRunnable;
 
+    private SimpleXYSeries mSeries;
     private XYPlot mPlot = null;
-
     private int time = 0;
-
     private int[] rssiArray;
 
-    // Stops scanning after 10 seconds.
-    private static final long SCAN_PERIOD = 10000;
-
-
-    BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
-        @Override
-        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-            super.onConnectionStateChange(gatt, status, newState);
-
-
-            if (newState == BluetoothGatt.STATE_CONNECTED) {
-                Log.i("RSSI", "Connected to " + gatt.getDevice().getAddress());
-                Log.i("RSSI", "Read remote RSSI.");
-                gatt.readRemoteRssi();
-
-                // Circle-Reveal graph once we're connected.
-                mHandler.postDelayed(mCircleRevealRunnable, 2200);
-            } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
-                Log.i("RSSI", "Disconnected from " + gatt.getDevice().getAddress());
-            }
-
-        }
-
-        @Override
-        public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
-            super.onReadRemoteRssi(gatt, rssi, status);
-            Log.i("RSSI", "RSSI=" + rssi);
-
-
-
-            int bla = time % 10;
-            rssiArray[bla] = rssi;
-            int bla2 = time / 10;
-
-            if (bla == 0 && time != 0) {
-
-                int avg = 0;
-                for (int i = 0; i < rssiArray.length; i++) {
-                    avg += rssiArray[i];
-                }
-                avg = avg / rssiArray.length;
-
-                mSeries.addLast(bla2, avg);
-
-                if (mDownloading) {
-                    //mDownloadSeries.addLast(bla2, avg);
-                }
-
-                mPlot.redraw();
-            }
-
-            time++;
-
-            // Read RSSI
-            mHandler.postDelayed(mStartRssiScanRunnable, 100);
-        }
-
-        final Runnable mStartRssiScanRunnable = new Runnable() {
-            @Override
-            public void run() {
-                mBluetoothGatt.readRemoteRssi();
-            }
-        };
-
-    };
+    private boolean screenLockOn;
     private PowerManager.WakeLock mWakeLock;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        screenLockOn = true;
-
-        screenLock(true);
-
+        // Make sure BLE is available and switched on.
         if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
             Toast.makeText(this, "No BLE on this device.", Toast.LENGTH_LONG).show();
             finish();
@@ -165,23 +68,16 @@ public class MainActivity extends AppCompatActivity {
             finish();
         }
 
-        mBluetoothAdapter = bMan.getAdapter();
+        // Initially set screen brightness lock.
+        screenLockOn = true;
+        screenLock(true);
 
-        mEnable = true;
-        //mStartButton = (Button) findViewById(R.id.startButton);
+        rssiArray = new int[10];
 
         mHandler = new Handler(Looper.getMainLooper());
 
-        // Download stuff.
-        
-        // instantiate it within the onCreate method
-        mProgressDialog = new ProgressDialog(this);
-        mProgressDialog.setMessage("Now downloading...");
-        mProgressDialog.setIndeterminate(true);
-        mProgressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-        mProgressDialog.setCancelable(true);
-
-
+        // Set up graph.
+        mSeries = new SimpleXYSeries("BLE RSSI");
         mPlot = (XYPlot) findViewById(R.id.mySimpleXYPlot);
         mPlot.getGraphWidget().getBackgroundPaint().setColor(Color.TRANSPARENT);
         mPlot.getGraphWidget().getGridBackgroundPaint().setColor(Color.argb(43,255,255,255));
@@ -196,33 +92,26 @@ public class MainActivity extends AppCompatActivity {
         mPlot.getGraphWidget().getCursorLabelBackgroundPaint().setColor(Color.GREEN);
         mPlot.getBorderPaint().setColor(Color.TRANSPARENT);
         mPlot.getBackgroundPaint().setColor(Color.TRANSPARENT);
-
-
-        mSeries = new SimpleXYSeries("BLE RSSI");
         mPlot.getLegendWidget().getTextPaint().setColor(Color.BLACK);
         mPlot.setDomainValueFormat(new DecimalFormat("0"));
-        mPlot.setTicksPerDomainLabel(3);
         mPlot.setRangeValueFormat(new DecimalFormat("0"));
-
-        //mDownloadSeries = new SimpleXYSeries("BLE+WiFi");
+        mPlot.setTicksPerDomainLabel(3);
         mPlot.addSeries(mSeries, new LineAndPointFormatter(Color.rgb(100, 100, 200), null, null, null));
-        //mPlot.addSeries(mDownloadSeries, new LineAndPointFormatter(Color.rgb(20, 20, 20), null, null, null));
-        //mPlot.setDomainLeftMax(0);
-        //mPlot.setDomainLeftMax(-120);
         mPlot.setRangeBoundaries(-120, -10, BoundaryMode.FIXED);
 
-        rssiArray = new int[10];
-
+        // Get BLE name and address and set views accordingly.
+        // Also use address to create device and connect.
         Intent intent = getIntent();
-        mBLEAddress = intent.getStringExtra("mac");
-        mBLEName = intent.getStringExtra("name");
+        String BLEAddress = intent.getStringExtra("mac");
+        String BLEName = intent.getStringExtra("name");
 
-        mDevice = mBluetoothAdapter.getRemoteDevice(mBLEAddress);
-        mBluetoothGatt = mDevice.connectGatt(this, false, mGattCallback);
+        BluetoothDevice device = bMan.getAdapter().getRemoteDevice(BLEAddress);
+        mBluetoothGatt = device.connectGatt(this, false, mGattCallback);
 
         TextView v = (TextView) findViewById(R.id.bleDeviceNameView);
-        v.setText(mBLEName + " - " + mBLEAddress);
+        v.setText(BLEName + " - " + BLEAddress);
 
+        // Nifty circle reveal animation.
         mCircleRevealRunnable = new Runnable() {
             @Override
             public void run() {
@@ -244,27 +133,30 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
-
-        mFab = (FloatingActionButton) findViewById(R.id.fab2);
-        mFab.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
+        // Set click listener for FAB.
+        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab2);
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
                 onBackPressed();
             }
         });
 
     }
 
-    private void screenLock(boolean b) {
-        if (b) {
-            PowerManager pm = (PowerManager) this.getSystemService(Context.POWER_SERVICE);
-            mWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
-                    getClass().getName());
-            mWakeLock.acquire();
-        } else {
-            mWakeLock.release();
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        // Remove screen brightness lock and pending animation callbacks.
+        screenLock(false);
+        mHandler.removeCallbacks(mCircleRevealRunnable);
+
+        // Disconnect BLE.
+        if (mBluetoothGatt != null) {
+            mBluetoothGatt.disconnect();
         }
     }
-
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -275,14 +167,12 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
 
+            // Turn screen brightness lock on or off.
             if (screenLockOn) {
                 Toast.makeText(this, "Screen brightness lock turned off", Toast.LENGTH_SHORT).show();
                 screenLock(false);
@@ -299,138 +189,75 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    // GATT callback gets called on connection state change or RSSI update.
+    BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
 
-
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-
-        screenLock(false);
-
-        mHandler.removeCallbacks(mCircleRevealRunnable);
-        if (mBluetoothGatt != null) {
-            mBluetoothGatt.disconnect();
-        }
-    }
-
-
-    public void downloadButtonClicked(View view) {
-
-        // execute this when the downloader must be fired
-        final DownloadTask downloadTask = new DownloadTask(this);
-        downloadTask.execute("http://www.mirror.internode.on.net/pub/test/100meg.test");
-
-        mProgressDialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
-            @Override
-            public void onCancel(DialogInterface dialog) {
-                downloadTask.cancel(true);
-                mDownloading = false;
-            }
-        });
-
-    }
-
-
-    // usually, subclasses of AsyncTask are declared inside the activity class.
-// that way, you can easily modify the UI thread from here
-    private class DownloadTask extends AsyncTask<String, Integer, String> {
-
-        private Context context;
-        private PowerManager.WakeLock mWakeLock;
-
-        public DownloadTask(Context context) {
-            this.context = context;
-        }
-
+        // Connection state changed.
         @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            // take CPU lock to prevent CPU from going off if the user
-            // presses the power button during download
-            PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+            super.onConnectionStateChange(gatt, status, newState);
+
+            if (newState == BluetoothGatt.STATE_CONNECTED) {
+                Log.i(_TAG, "Connected to " + gatt.getDevice().getAddress());
+                Log.i(_TAG, "Read remote RSSI.");
+                gatt.readRemoteRssi();
+
+                // Circle-Reveal graph once we're connected. ~2 seconds before data starts coming in.
+                mHandler.postDelayed(mCircleRevealRunnable, 2200);
+            } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
+                Log.i(_TAG, "Disconnected from " + gatt.getDevice().getAddress());
+            }
+
+        }
+
+        // New RSSI received.
+        @Override
+        public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
+            super.onReadRemoteRssi(gatt, rssi, status);
+            Log.i(_TAG, "RSSI=" + rssi);
+
+            // Only update graph on every 10th RSSI read (average from 10 RSSIs).
+            rssiArray[time % 10] = rssi;
+            if (time % 10 == 0 && time != 0) {
+
+                int avg = 0;
+                for (int aRssiArray : rssiArray) {
+                    avg += aRssiArray;
+                }
+
+                avg = avg / rssiArray.length;
+                mSeries.addLast(time / 10, avg);
+                mPlot.redraw();
+            }
+
+
+            // Sleep for 0.1 second => About 10 RSSIs per second.
+            time++;
+            mHandler.postDelayed(mStartRssiScanRunnable, 100);
+        }
+
+        final Runnable mStartRssiScanRunnable = new Runnable() {
+            @Override
+            public void run() {
+                mBluetoothGatt.readRemoteRssi();
+            }
+        };
+
+    };
+
+    /**
+     * Set or unset screen brightness lock (wake lock).
+     * @param b whether to set or unset.
+     */
+    private void screenLock(boolean b) {
+        if (b) {
+            PowerManager pm = (PowerManager) this.getSystemService(Context.POWER_SERVICE);
             mWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
                     getClass().getName());
             mWakeLock.acquire();
-            mProgressDialog.show();
-        }
-
-        @Override
-        protected void onProgressUpdate(Integer... progress) {
-            super.onProgressUpdate(progress);
-            // if we get here, length is known, now set indeterminate to false
-            mProgressDialog.setIndeterminate(false);
-            mProgressDialog.setMax(100);
-            mProgressDialog.setProgress(progress[0]);
-        }
-
-        @Override
-        protected void onPostExecute(String result) {
-            mDownloading = false;
+        } else {
             mWakeLock.release();
-            mProgressDialog.dismiss();
-            if (result != null)
-                Toast.makeText(context, "Download error: " + result, Toast.LENGTH_LONG).show();
-            else
-                Toast.makeText(context, "File downloaded", Toast.LENGTH_SHORT).show();
-        }
-
-        @Override
-        protected String doInBackground(String... sUrl) {
-            InputStream input = null;
-            OutputStream output = null;
-            HttpURLConnection connection = null;
-            mDownloading = true;
-            try {
-                URL url = new URL(sUrl[0]);
-                connection = (HttpURLConnection) url.openConnection();
-                connection.connect();
-
-                // expect HTTP 200 OK, so we don't mistakenly save error report
-                // instead of the file
-                if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
-                    return "Server returned HTTP " + connection.getResponseCode()
-                            + " " + connection.getResponseMessage();
-                }
-
-                // this will be useful to display download percentage
-                // might be -1: server did not report the length
-                int fileLength = connection.getContentLength();
-
-                // download the file
-                input = connection.getInputStream();
-                output = new FileOutputStream("/dev/null/");
-
-                byte data[] = new byte[4096];
-                long total = 0;
-                int count;
-                while ((count = input.read(data)) != -1) {
-                    // allow canceling with back button
-                    if (isCancelled()) {
-                        input.close();
-                        return null;
-                    }
-                    total += count;
-                    // publishing the progress....
-                    if (fileLength > 0) // only if total length is known
-                        publishProgress((int) (total * 100 / fileLength));
-                    output.write(data, 0, count);
-                }
-            } catch (Exception e) {
-                return e.toString();
-            } finally {
-                try {
-                    if (output != null)
-                        output.close();
-                    if (input != null)
-                        input.close();
-                } catch (IOException ignored) {
-                }
-
-                if (connection != null)
-                    connection.disconnect();
-            }
-            return null;
         }
     }
+
 }
